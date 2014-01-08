@@ -1,0 +1,63 @@
+include "stdlib.h"
+include "stdio.h"
+include "unistd.h"
+include "string.h"
+
+import Core::Execution::Queue
+import Core::IO::Channel
+
+public
+import Host
+import HTTPRequest
+
+namespace Core::Network
+
+  public
+  struct Session
+    *Host host
+  end
+
+  def session_create(*Host host; *Session)
+    *Session session = malloc(sizeof(Session))
+
+    session->host = host
+
+    return session
+  end
+
+  private
+  def Session.handle_write_complete(*Core::IO::Channel channel, *{} closure_ptr)
+    channel.read(0, 5000, do (*Core::IO::Data data) {
+      printf("finished read?\n")
+
+      (*closure_ptr)()
+    })
+  end
+
+  def Session.write_request(*HTTPRequest request, Natural descriptor, *{} closure_ptr)
+    printf("writing request\n")
+
+    *Core::IO::Channel channel = Core::IO::channel_create(Core::IO::Type::Stream, descriptor)
+
+    *Char msg = "GET / HTTP/1.1\r\nHost: www.google.com\r\nConnection: close\r\n\r\n"
+    *Core::IO::Data data = Core::IO::data_create(msg, strlen(msg))
+
+    channel.write(0, data, do () {
+      printf("finished writing\n")
+
+      self.handle_write_complete(channel, closure_ptr)
+    })
+  end
+
+  public
+  def Session.request(*HTTPRequest request, {} closure)
+    *{} closure_ptr = three_closure_copy(closure)
+
+    self->host.connect(do (Natural descriptor) {
+      printf("connected\n")
+      self.write_request(request, descriptor, closure_ptr)
+    })
+  end
+
+end
+

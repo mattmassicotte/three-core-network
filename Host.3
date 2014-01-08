@@ -1,0 +1,105 @@
+include "string.h"
+include "netdb.h"
+include "stdlib.h"
+include "sys/socket.h"
+include "stdio.h"
+include "unistd.h"
+
+import Core::Execution::Queue
+
+namespace Core::Network
+
+    public
+    struct Host
+        addrinfo address_info
+    end
+
+    def host_create(; *Host)
+        *Host host = malloc(sizeof(Host))
+
+        return host
+    end
+
+    def lookup_localhost({*Host host} closure; Bool)
+        addrinfo localhost
+
+        return false
+    end
+
+    private
+    def getaddrinfo_enumerate(*Char name, *Char protocol, *addrinfo hints, {*addrinfo} closure; Bool)
+        *addrinfo results
+
+        if getaddrinfo(name, protocol, hints, &results) != 0
+            printf("Unable to get host info\n")
+            return false
+        end
+
+        for (*addrinfo result = results; result; result = result->ai_next)
+            closure(result)
+        end
+
+        freeaddrinfo(results)
+
+        return true
+    end
+
+    public
+    def lookup_hosts(*Char name, *Char protocol, {*Host} closure)
+        addrinfo hints
+
+        memset(&hints, 0, sizeof(addrinfo))
+
+        hints.ai_family = 0 # AF_UNSPEC
+        hints.ai_socktype = 1 # SOCK_STREAM
+        hints.ai_flags = 0
+        hints.ai_protocol = 0
+
+        *{*Host host} closure_ptr = three_closure_copy(closure)
+
+        # TODO: language issue
+        *Core::Execution::Queue queue = Core::Execution::get_global_queue()
+        queue.async(do () {
+            # TODO: it would be a lot nicer to use getaddrinfo_enumerate, but
+            # nested closures aren't working quite right
+            *addrinfo results
+
+            if getaddrinfo(name, protocol, &hints, &results) != 0
+                printf("Unable to get host info\n")
+                return
+            end
+
+            for (*addrinfo result = results; result; result = result->ai_next)
+                *Host host = Core::Network::host_create()
+
+                host->address_info = *result
+
+                (*closure_ptr)(host)
+            end
+
+            freeaddrinfo(results)
+            three_closure_release(closure_ptr)
+        })
+    end
+
+    def Host.connect({Natural descriptor} closure)
+        *addrinfo ai = &self->address_info
+
+        Int fd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol)
+        if fd < 0
+            printf("socket call failed\n")
+            closure(-1)
+            return
+        end
+
+        if connect(fd, ai->ai_addr, ai->ai_addrlen) < 0
+            close(fd)
+            printf("connect to socket %d failed\n", fd)
+            closure(-1)
+            return
+        end
+
+        closure(fd)
+    end
+
+end
