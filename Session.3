@@ -28,14 +28,14 @@ namespace Core::Network
   private
   def Session.handle_write_complete(*Core::IO::Channel channel, *{} closure_ptr)
     channel.read(0, 5000, do (*Core::IO::Data data) {
-      printf("finished read?\n")
+      printf("[Network::Session] finished read?\n")
 
       (*closure_ptr)()
     })
   end
 
   def Session.write_request(*HTTPRequest request, Natural descriptor, *{} closure_ptr)
-    printf("writing request\n")
+    printf("[Network::Session] writing request\n")
 
     *Core::IO::Channel channel = Core::IO::channel_create(Core::IO::Type::Stream, descriptor)
 
@@ -43,9 +43,11 @@ namespace Core::Network
     *Core::IO::Data data = Core::IO::data_create(msg, strlen(msg))
 
     channel.write(0, data, do () {
-      printf("finished writing\n")
+      printf("[Network::Session] finished writing request %p\n", self)
 
       self.handle_write_complete(channel, closure_ptr)
+
+      printf("[Network::Session] completed handling write %p\n", self)
     })
   end
 
@@ -54,7 +56,7 @@ namespace Core::Network
     *{} closure_ptr = three_closure_copy(closure)
 
     self->host.connect(do (Natural descriptor) {
-      printf("connected\n")
+      printf("[Network::Session] connected\n")
       self.write_request(request, descriptor, closure_ptr)
     })
   end

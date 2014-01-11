@@ -50,8 +50,8 @@ namespace Core::Network
 
         memset(&hints, 0, sizeof(addrinfo))
 
-        hints.ai_family = 0 # AF_UNSPEC
-        hints.ai_socktype = 1 # SOCK_STREAM
+        hints.ai_family = 0 # AF_UNSPEC (darwin and linux)
+        hints.ai_socktype = 1 # SOCK_STREAM (darwin and linux)
         hints.ai_flags = 0
         hints.ai_protocol = 0
 
