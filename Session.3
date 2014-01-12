@@ -39,7 +39,7 @@ namespace Core::Network
 
     *Core::IO::Channel channel = Core::IO::channel_create(Core::IO::Type::Stream, descriptor)
 
-    *Char msg = "GET / HTTP/1.1\r\nHost: www.google.com\r\nConnection: close\r\n\r\n"
+    *Char msg = "GET / HTTP/1.1\r\nHost: whatismyipv6.com\r\nConnection: close\r\n\r\n"
     *Core::IO::Data data = Core::IO::data_create(msg, strlen(msg))
 
     channel.write(0, data, do () {
