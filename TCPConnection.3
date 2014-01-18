@@ -1,0 +1,33 @@
+include "stdio.h"
+include "string.h"
+include "stdlib.h"
+
+import Core::IO::Channel
+import Core::IO::Data
+
+namespace Core::Network
+
+  public
+  struct TCPConnection
+    Natural descriptor
+    *Core::IO::Channel channel
+  end
+
+  def tcp_connection_create(Natural descriptor; *TCPConnection)
+    *TCPConnection connection = malloc(sizeof(TCPConnection))
+
+    connection->descriptor = descriptor
+    connection->channel = Core::IO::channel_create(Core::IO::Type::Stream, descriptor)
+
+    return connection
+  end
+
+  def TCPConnection.close()
+    printf("[Network::TCPConnection] close\n")
+  end
+
+  def TCPConnection.read(Natural length, {*Core::IO::Data data} handler)
+    self->channel.read(0, length, handler)
+  end
+
+end

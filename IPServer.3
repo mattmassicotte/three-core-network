@@ -1,0 +1,97 @@
+include "string.h"
+include "stdlib.h"
+include "sys/socket.h"
+include "netinet/in.h"
+include "stdio.h"
+include "unistd.h"
+include "errno.h"
+
+import Core::Event::Source
+
+public
+import TCPConnection
+
+namespace Core::Network
+
+  public
+  struct IPServer
+    Natural v4_listen_descriptor
+    Natural v6_listen_descriptor
+
+    *Core::Event::Source v4_read_source
+    *{*Core::Network::TCPConnection connection} connection_handler_ptr
+  end
+
+  def ip_server_create(Natural port; *IPServer)
+    *IPServer server = malloc(sizeof(IPServer))
+
+    server->v4_listen_descriptor = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)
+    server->v4_read_source = null
+
+    Int option = 1
+
+    if setsockopt(server->v4_listen_descriptor, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(Int)) != 0
+      printf("[Network::IPServer] Unable to set socket options (%d)\n", errno)
+      close(server->v4_listen_descriptor)
+      free(server)
+      return null
+    end
+
+    sockaddr_in sin
+
+    memset(&sin, 0 sizeof(sockaddr_in))
+
+    sin.sin_family = AF_INET
+    sin.sin_port = htons(port)
+    sin.sin_addr.s_addr= INADDR_ANY
+
+    if bind(server->v4_listen_descriptor, &sin, sizeof(sockaddr_in)) != 0
+      printf("[Network::IPServer] Unable to bind socket (%d)\n", errno)
+      close(server->v4_listen_descriptor)
+      free(server)
+      return null
+    end
+
+    return server
+  end
+
+  private
+  def IPServer.accept_connection(Natural descriptor)
+    sockaddr addr
+    socklen_t addrlen = sizeof(sockaddr)
+
+    Natural connection_descriptor = accept(descriptor, &addr, &addrlen)
+    if connection_descriptor == -1
+      printf("[Network::IPServer] unable to accept connection (%d)\n", errno)
+      return
+    end
+
+    *Core::Network::TCPConnection connection
+    
+    connection = Core::Network::tcp_connection_create(connection_descriptor)
+
+    (*self->connection_handler_ptr)(connection)
+  end
+
+  public
+  def IPServer.start()
+    # max backlog should be more configurable
+    if listen(self->v4_listen_descriptor, 8) != 0
+      printf("[Network::IPServer] unable to listen for connections (%d)\n", errno)
+      return
+    end
+
+    self->v4_read_source = Core::Event::source_create(Core::Event::Type::Read, self->v4_listen_descriptor)
+    self->v4_read_source.set_handler(do (Natural descriptor, Natural data) {
+      printf("[Network::IPServer] incoming connection\n")
+      self.accept_connection(descriptor)
+    })
+
+    printf("[Network::IPServer] started\n")
+  end
+
+  def IPServer.set_connection_handler({*Core::Network::TCPConnection connection} handler)
+    self->connection_handler_ptr = three_closure_copy(handler)
+  end
+
+end
