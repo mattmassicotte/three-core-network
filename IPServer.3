@@ -7,8 +7,6 @@ include "unistd.h"
 include "errno.h"
 
 import Core::Event::Source
-
-public
 import TCPConnection
 
 namespace Core::Network
@@ -39,13 +37,13 @@ namespace Core::Network
 
     sockaddr_in sin
 
-    memset(&sin, 0 sizeof(sockaddr_in))
+    memset(&sin, 0, sizeof(sockaddr_in))
 
     sin.sin_family = AF_INET
     sin.sin_port = htons(port)
     sin.sin_addr.s_addr= INADDR_ANY
 
-    if bind(server->v4_listen_descriptor, &sin, sizeof(sockaddr_in)) != 0
+    if bind(server->v4_listen_descriptor, cast(*sockaddr, &sin), sizeof(sockaddr_in)) != 0
       printf("[Network::IPServer] Unable to bind socket (%d)\n", errno)
       close(server->v4_listen_descriptor)
       free(server)
